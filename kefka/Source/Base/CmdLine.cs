@@ -73,7 +73,8 @@ Examples:
             else if (EolCmdProcessor.IsType(_type))
             {
                 processor = new EolCmdProcessor();
-                processor.ParseCmdLine(this);
+                if (!processor.ParseCmdLine(this))
+                    return processor;
             }
             else
             {

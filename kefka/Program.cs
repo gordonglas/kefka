@@ -14,15 +14,27 @@ namespace kefka
             CmdLine cmdLine = new CmdLine(args);
             CmdProcessor processor = cmdLine.Parse();
             if (processor == null)
-            {
-                string error = processor.Error;
-                if (!string.IsNullOrWhiteSpace(error))
-                    Console.Error.WriteLine(error);
                 return 1;
+
+            if (processor.HasError())
+                return PrintErrors(processor);
+
+            if (!processor.RunAndWait())
+            {
+                if (processor.HasError())
+                    return PrintErrors(processor);
             }
 
-            processor.RunAndWait();
             return 0;
+        }
+
+        private static int PrintErrors(CmdProcessor processor)
+        {
+            foreach (string error in processor.GetErrors())
+            {
+                Console.Error.WriteLine(error);
+            }
+            return 1;
         }
     }
 }

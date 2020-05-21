@@ -13,9 +13,9 @@ namespace kefka.Source.Processors
         private const string EOL_TYPE_CRLF = "crlf";
         private const string EOL_TYPE_CR = "cr";
 
-        private string _eolType;
-        private List<string> _inputFiles;
-        private string _output;
+        private string _eolTypeParam;
+        private List<string> _inputFilesParam;
+        private string _outputParam;
 
         public static bool IsType(string type)
         {
@@ -28,7 +28,7 @@ namespace kefka.Source.Processors
             string type = tok[1];
             if (type.Trim() == "")
             {
-                Error = "Missing --eol= param value.";
+                AppendError("Missing --eol= param value.");
                 return false;
             }
 
@@ -36,17 +36,17 @@ namespace kefka.Source.Processors
                 type == EOL_TYPE_CRLF ||
                 type == EOL_TYPE_CR)
             {
-                _eolType = type;
+                _eolTypeParam = type;
             }
             else
             {
-                Error = "Invalid --eol= param value.";
+                AppendError("Invalid --eol= param value.");
                 return false;
             }
 
             // kefka --eol=lf path/to/file.txt -o output/path/
 
-            _inputFiles = new List<string>();
+            _inputFilesParam = new List<string>();
             bool? isOutput = null;
             for (int i = 1; i < cmdLine._args.Length; i++)
             {
@@ -58,40 +58,85 @@ namespace kefka.Source.Processors
                 }
                 else if (isOutput == true)
                 {
-                    _output = arg;
+                    _outputParam = arg;
                     isOutput = false;
                     break;
                 }
                 else
                 {
-                    _inputFiles.Add(arg);
+                    _inputFilesParam.Add(arg);
                 }
             }
 
-            if (_inputFiles.Count == 0)
+            if (_inputFilesParam.Count == 0)
             {
-                Error = "Missing [input-files] param.";
+                AppendError("Missing [input-files] param.");
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(_output))
+            if (string.IsNullOrWhiteSpace(_outputParam))
             {
-                Error = "Missing [output] param.";
+                AppendError("Missing [output] param.");
                 return false;
             }
 
             return true;
         }
 
-        override public void RunAndWait()
+        override public bool RunAndWait()
         {
-            // TODO: possibly use multiple threads to handle multiple files at once.
-            // TODO: stream file into memory with small buffer, so we can do replaces on large files.
-            
-            if (_eolType == EOL_TYPE_LF)
+            // enumerate input files
+            List<string> inputFiles = new List<string>();
+            foreach (string inputFileParam in _inputFilesParam)
             {
+                if (!File.Exists(inputFileParam))
+                {
+                    AppendError($"Input file \"{inputFileParam}\" not found or you don't have read permission.");
+                    return false;
+                }
 
+                inputFiles.Add(inputFileParam);
             }
+
+            // check if output path exists
+            if (!Directory.Exists(_outputParam))
+            {
+                AppendError("Output directory does not exist or you don't have read permission.");
+                return false;
+            }
+
+            foreach (string inputFile in inputFiles)
+            {
+                // TODO: use multiple threads to handle multiple files at once.
+
+                // TODO: either try to determine encoding of input file, or allow to specify it as command line param. For now, assumes UTF-8 without BOM.
+
+                try
+                {
+                    // stream file into memory with a relatively small buffer, so we can do replaces on large files.
+                    // while writing out to output file
+                    using (FileStream ifs = new FileStream(inputFile, FileMode.Open, FileAccess.Read))
+                    using (FileStream ofs = new FileStream(_outputParam, FileMode.Create, FileAccess.Write))
+                    {
+                        long bufSize = Math.Min(1024 * 1024, ifs.Length);
+                        byte[] buf = new byte[bufSize];
+
+                        long remainingBytes = ifs.Length;
+
+                        if (_eolTypeParam == EOL_TYPE_LF)
+                        {
+
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppendError(ex.ToString());
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
