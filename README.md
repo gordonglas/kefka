@@ -1,7 +1,8 @@
 # Kefka - Cross-platform file transform cli tool
 
 ## Convert line endings
-Anything that starts with "TODO" below, has not been implemented yet.
+* Currently assumes all input files are UTF-8 encoding.
+* Anything that starts with "TODO" below, has not been implemented yet.
 <pre>
 kefka --eol=lf [input-files] [-o output]
 
