@@ -23,6 +23,7 @@ Usage:
 Options:
   --eol=TYPE
         Set to line ending type that you want to convert to.
+        Only supports UTF-8 input/output.
         TYPE values:
             lf    line-feed
             crlf  carriage-return/line-feed
@@ -61,8 +62,6 @@ Examples:
 
             _type = _args[0].ToLower();
 
-            // kefka --eol=lf path/to/file.txt -o output/path/
-
             CmdProcessor processor = null;
 
             if (_type == "--help" || _type == "-h" || _type == "help" || _type == "/?")
@@ -70,9 +69,8 @@ Examples:
                 DisplayHelp();
                 return null;
             }
-            else if (EolCmdProcessor.IsType(_type))
+            else if ((processor = CmdProcessor.Factory(_type)) != null)
             {
-                processor = new EolCmdProcessor();
                 if (!processor.ParseCmdLine(this))
                     return processor;
             }

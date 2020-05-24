@@ -7,6 +7,16 @@ namespace kefka.Source.Processors
 {
     public abstract class CmdProcessor
     {
+        public static CmdProcessor Factory(string typeParam)
+        {
+            if (EolCmdProcessor.IsType(typeParam))
+            {
+                return new EolCmdProcessor();
+            }
+
+            return null;
+        }
+
         private object _lockError = new object();
         private List<string> _errors = new List<string>();
 
