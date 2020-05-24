@@ -141,7 +141,6 @@ namespace kefka.Source.Processors
 
         private void ConvertToLF(FileStream ifs, FileStream ofs, byte[] buf)
         {
-            long totalBytesRead = 0;
             int readOffset = 0;
 
             long remainingBytes = ifs.Length;
@@ -172,26 +171,23 @@ namespace kefka.Source.Processors
                 if (bytesRead == 0)
                     throw new Exception("bytesRead == 0");
 
-                totalBytesRead += bytesRead;
                 remainingBytes -= bytesRead;
 
-                bool endOfStream = remainingBytes == 0;
-
-                if (endOfStream && buf[bytesRead - 1] == CARRIAGE_RETURN)
+                if (remainingBytes == 0 && buf[bytesRead - 1] == CARRIAGE_RETURN)
                 {
-                    ReplaceWithLF(ofs, buf, bytesRead - 2, endOfStream);
+                    ReplaceWithLF(ofs, buf, bytesRead - 2);
                     buf[0] = buf[bytesRead - 1];
                     readOffset = 1;
                 }
                 else
                 {
-                    ReplaceWithLF(ofs, buf, bytesRead - 1, endOfStream);
+                    ReplaceWithLF(ofs, buf, bytesRead - 1);
                     readOffset = 0;
                 }
             }
         }
 
-        private void ReplaceWithLF(FileStream ofs, byte[] buf, int bufEnd, bool endOfStream)
+        private void ReplaceWithLF(FileStream ofs, byte[] buf, int bufEnd)
         {
             byte[] outbuf = new byte[bufEnd + 1];
             int outpos = 0;
