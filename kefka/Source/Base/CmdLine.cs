@@ -26,8 +26,8 @@ Options:
         Only supports UTF-8 input/output.
         TYPE values:
             lf    line-feed
-            crlf  carriage-return/line-feed
-            cr    carriage-return
+            TODO: crlf  carriage-return/line-feed
+            TODO: cr    carriage-return
   [input-files]
         Optional space-delimited list of input files.
         TODO: Can use simple wildcard.

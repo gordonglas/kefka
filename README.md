@@ -1,7 +1,10 @@
 # Kefka - Cross-platform file transform cli tool
 
+Requires .NET Core 3.1 runtime.
+
 ## Convert line endings
-* Currently assumes all input files are UTF-8 encoding.
+* Supports large files.
+* Supports UTF-8 input.
 * Anything that starts with "TODO" below, has not been implemented yet.
 <pre>
 kefka --eol=lf [input-files] [-o output]
@@ -11,8 +14,8 @@ Options:
         Set to line ending type that you want to convert to.
         TYPE values:
             lf    line-feed
-            crlf  carriage-return/line-feed
-            cr    carriage-return
+            TODO: crlf  carriage-return/line-feed
+            TODO: cr    carriage-return
   [input-files]
         Optional space-delimited list of input files.
         TODO: Can use simple wildcard.

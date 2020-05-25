@@ -2,7 +2,7 @@
   "profiles": {
     "kefka": {
       "commandName": "Project",
-      "commandLineArgs": "--eol=lf D:\\Users\\gglas\\Devel\\_archive\\test\\simple-text.txt -o D:\\Users\\gglas\\Devel\\_archive\\out\\"
+      "commandLineArgs": "--eol=lf ../../../test-data/test.txt -o ../../../test-data/output/"
     }
   }
 }

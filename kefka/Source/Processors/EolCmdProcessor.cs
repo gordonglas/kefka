@@ -88,23 +88,36 @@ namespace kefka.Source.Processors
 
         override public bool RunAndWait()
         {
-            // enumerate input files
             List<string> inputFiles = new List<string>();
-            foreach (string inputFileParam in _inputFilesParam)
+            string absoluteOutputFile;
+            try
             {
-                if (!File.Exists(inputFileParam))
+                // enumerate input files
+                foreach (string inputFileParam in _inputFilesParam)
                 {
-                    AppendError($"Input file \"{inputFileParam}\" not found or you don't have read permission.");
-                    return false;
+                    // convert relative to absolute path with respect to current working directory
+                    string absoluteInputFile = Path.GetFullPath(inputFileParam);
+
+                    if (!File.Exists(absoluteInputFile))
+                    {
+                        AppendError($"Input file \"{absoluteInputFile}\" not found or you don't have read permission.");
+                        return false;
+                    }
+
+                    inputFiles.Add(absoluteInputFile);
                 }
 
-                inputFiles.Add(inputFileParam);
+                // check if output path exists
+                absoluteOutputFile = Path.GetFullPath(_outputParam);
+                if (!Directory.Exists(absoluteOutputFile))
+                {
+                    AppendError("Output directory does not exist or you don't have read permission.");
+                    return false;
+                }
             }
-
-            // check if output path exists
-            if (!Directory.Exists(_outputParam))
+            catch (Exception ex)
             {
-                AppendError("Output directory does not exist or you don't have read permission.");
+                AppendError(ex.ToString());
                 return false;
             }
 
@@ -114,7 +127,7 @@ namespace kefka.Source.Processors
 
                 try
                 {
-                    string outputFile = Path.Combine(_outputParam, Path.GetFileName(inputFile));
+                    string outputFile = Path.Combine(absoluteOutputFile, Path.GetFileName(inputFile));
 
                     // stream file into memory with a relatively small buffer, so we can handle large files.
                     using (FileStream ifs = new FileStream(inputFile, FileMode.Open, FileAccess.Read))
@@ -127,6 +140,7 @@ namespace kefka.Source.Processors
                         {
                             ConvertToLF(ifs, ofs, buf);
                         }
+                        // TODO: handle other eol types
                     }
                 }
                 catch (Exception ex)
@@ -146,36 +160,18 @@ namespace kefka.Source.Processors
             long remainingBytes = ifs.Length;
             while (remainingBytes > 0)
             {
-                // say we're converting \r\n to \n
-                // input file = "some text\r\nmore text\r\n"
-                // bufSize = 10 // goes up just past first \r
-                // first ifs.Read() call happens.
-                // buf = "some text\r"
-                // algo that replaces strings must be careful when buf ends with \r (cause could be \r\n sequence)
-
-                // if not end of stream and buf[bytesRead-1] ends with \r
-                //   only do replaces against buf[0] through buf[bytesRead-2]
-                //   then move buf[bytesRead-1] into buf[0]
-                //   set vars to preserve first byte in the buf during our next ifs.Read: so it will: ifs.Read(buf, 1, bufSize - 2);
-                // else // could be end of stream and/or buf does NOT end in \r
-                //   safe to do replaces against entire buf (up through buf[bytesRead-1])
-                //   set vars to not preserve first byte in the buf during our next ifs.Read: so it will: ifs.Read(buf, 0, bufSize);
-
-                // once we determine what section of the buf to do replaces against (in logic above),
-                // must do replaces by:
-                //  loop through bytes of section of the buf to do replaces against
-                //    if byte is not part of a eol-sequence we're looking for, copy byte to new "target buf"
-                //  write target buf to output file.
-
                 int bytesRead = ifs.Read(buf, readOffset, buf.Length - readOffset);
                 if (bytesRead == 0)
                     throw new Exception("bytesRead == 0");
 
                 remainingBytes -= bytesRead;
 
+                // if not end of stream and buf ends with \r
                 if (remainingBytes == 0 && buf[bytesRead - 1] == CARRIAGE_RETURN)
                 {
+                    // only do replaces against buf[0] through buf[bytesRead-2]
                     ReplaceWithLF(ofs, buf, bytesRead - 2);
+                    // move trailing \r into buf[0] to preserve it for next read/replace
                     buf[0] = buf[bytesRead - 1];
                     readOffset = 1;
                 }
