@@ -7,11 +7,14 @@ Requires .NET Core 3.1 runtime.
 * Supports UTF-8 input.
 * Anything that starts with "TODO" below, has not been implemented yet.
 <pre>
-kefka --eol=lf [input-files] [-o output]
+Usage:
+  kefka --eol=lf [input-files] [-op output-path]
+  kefka --eol=lf [input-file] [-of output-file]
 
 Options:
   --eol=TYPE
         Set to line ending type that you want to convert to.
+        Only supports UTF-8 input/output.
         TYPE values:
             lf    line-feed
             TODO: crlf  carriage-return/line-feed
@@ -20,17 +23,16 @@ Options:
         Optional space-delimited list of input files.
         TODO: Can use simple wildcard.
         TODO: If omitted, reads from STDIN.
-  TODO: [--in-place]
-        Modify the input-files directly.
-        Ignores [-o output].
-  [-o output]
-        Output path or file.
-        Path must end with slash.
-        TODO: If omitted, [input-files] must be single file
-        and sends output to STDOUT.
-        TODO: If [input-files] is omitted,
-        and this is specified, this is the output file.
+  [-op output-path]
+        Output path. Same input filename will be used.
+  [-of output-file]
+        Output file. Must have single input source.
+
+  TODO: If both output-path and output-file are omitted,
+    input must be a single source
+    and output is sent to STDOUT.
 
 Examples:
-  kefka --eol=lf path/to/file.txt -o output/path/
+  kefka --eol=lf path/to/file1.js path/to/file2.js -op output/path
+  kefka --eol=lf path/to/file.js -of output/file.js
 </pre>

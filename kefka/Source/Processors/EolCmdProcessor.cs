@@ -18,7 +18,8 @@ namespace kefka.Source.Processors
 
         private string _eolTypeParam;
         private List<string> _inputFilesParam;
-        private string _outputParam;
+        private string _outputPathParam;
+        private string _outputFileParam;
 
         public static bool IsType(string type)
         {
@@ -47,28 +48,41 @@ namespace kefka.Source.Processors
                 return false;
             }
 
-            // kefka --eol=lf path/to/file.txt -o output/path/
+            // kefka --eol=lf path/to/file.txt -op output/path
+            // kefka --eol=lf path/to/file.txt -of output/file.txt
 
             _inputFilesParam = new List<string>();
-            bool? isOutput = null;
+            bool? isOutputPath = null;
+            bool? isOutputFile = null;
             for (int i = 1; i < cmdLine._args.Length; i++)
             {
                 string arg = cmdLine._args[i];
 
-                if (isOutput == null && arg == "-o")
+                if (isOutputPath == null && arg == "-op")
                 {
-                    isOutput = true;
+                    isOutputPath = true;
+                    continue;
                 }
-                else if (isOutput == true)
+                else if (isOutputPath == true)
                 {
-                    _outputParam = arg;
-                    isOutput = false;
+                    _outputPathParam = arg;
+                    isOutputPath = false;
                     break;
                 }
-                else
+
+                if (isOutputFile == null && arg == "-of")
                 {
-                    _inputFilesParam.Add(arg);
+                    isOutputFile = true;
+                    continue;
                 }
+                else if (isOutputFile == true)
+                {
+                    _outputFileParam = arg;
+                    isOutputFile = false;
+                    break;
+                }
+
+                _inputFilesParam.Add(arg);
             }
 
             if (_inputFilesParam.Count == 0)
@@ -77,9 +91,34 @@ namespace kefka.Source.Processors
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(_outputParam))
+            bool hasOutputPath = !string.IsNullOrWhiteSpace(_outputPathParam);
+            bool hasOutputFile = !string.IsNullOrWhiteSpace(_outputFileParam);
+
+            if (isOutputPath == true && !hasOutputPath)
             {
-                AppendError("Missing [output] param.");
+                AppendError("Missing [output-path] param.");
+                return false;
+            }
+            else if (isOutputFile == true && !hasOutputFile)
+            {
+                AppendError("Missing [output-file] param.");
+                return false;
+            }
+
+            if (!hasOutputPath && !hasOutputFile)
+            {
+                AppendError("[output-path] or [output-file] param required.");
+                return false;
+            }
+            else if (hasOutputPath && hasOutputFile)
+            {
+                AppendError("Cannot have both [output-path] and [output-file] params.");
+                return false;
+            }
+
+            if (hasOutputFile && _inputFilesParam.Count > 1)
+            {
+                AppendError("Single [output-file] with multiple input files. Maybe you meant to use -op instead?");
                 return false;
             }
 
@@ -89,7 +128,7 @@ namespace kefka.Source.Processors
         override public bool RunAndWait()
         {
             List<string> inputFiles = new List<string>();
-            string absoluteOutputFile;
+            string absoluteOutputPath = null;
             try
             {
                 // enumerate input files
@@ -107,12 +146,29 @@ namespace kefka.Source.Processors
                     inputFiles.Add(absoluteInputFile);
                 }
 
-                // check if output path exists
-                absoluteOutputFile = Path.GetFullPath(_outputParam);
-                if (!Directory.Exists(absoluteOutputFile))
+                if (!string.IsNullOrWhiteSpace(_outputPathParam))
                 {
-                    AppendError("Output directory does not exist or you don't have read permission.");
-                    return false;
+                    // check if output path exists
+                    absoluteOutputPath = Path.GetFullPath(_outputPathParam);
+                    if (!Directory.Exists(absoluteOutputPath))
+                    {
+                        AppendError("Output directory does not exist or you don't have read permission.");
+                        return false;
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(_outputFileParam))
+                {
+                    // check if path portion of output file exists
+                    absoluteOutputPath = Path.GetDirectoryName(_outputFileParam);
+                    if (!Directory.Exists(absoluteOutputPath))
+                    {
+                        AppendError("Output directory does not exist or you don't have read permission.");
+                        return false;
+                    }
+                }
+                else
+                {
+                    throw new Exception("invalid params");
                 }
             }
             catch (Exception ex)
@@ -127,7 +183,19 @@ namespace kefka.Source.Processors
 
                 try
                 {
-                    string outputFile = Path.Combine(absoluteOutputFile, Path.GetFileName(inputFile));
+                    string outputFile = null;
+                    if (!string.IsNullOrWhiteSpace(_outputPathParam))
+                    {
+                        outputFile = Path.Combine(absoluteOutputPath, Path.GetFileName(inputFile));
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_outputFileParam))
+                    {
+                        outputFile = Path.Combine(absoluteOutputPath, Path.GetFileName(_outputFileParam));
+                    }
+                    else
+                    {
+                        throw new Exception("invalid params");
+                    }
 
                     // stream file into memory with a relatively small buffer, so we can handle large files.
                     using (FileStream ifs = new FileStream(inputFile, FileMode.Open, FileAccess.Read))
