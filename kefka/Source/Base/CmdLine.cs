@@ -37,6 +37,9 @@ Options:
         Output path. Same input filename will be used.
   [-of output-file]
         Output file. Must have single input source.
+  --no-remove-bom
+        Do not remove byte-order-mark if one exists.
+        Default is to remove it.
 
   TODO: If both output-path and output-file are omitted,
     input must be a single source

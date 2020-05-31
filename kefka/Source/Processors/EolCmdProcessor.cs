@@ -20,6 +20,7 @@ namespace kefka.Source.Processors
         private List<string> _inputFilesParam;
         private string _outputPathParam;
         private string _outputFileParam;
+        private bool _removeBom = true;
 
         public static bool IsType(string type)
         {
@@ -80,6 +81,12 @@ namespace kefka.Source.Processors
                     _outputFileParam = arg;
                     isOutputFile = false;
                     break;
+                }
+
+                if (arg == "--no-remove-bom")
+                {
+                    _removeBom = false;
+                    continue;
                 }
 
                 _inputFilesParam.Add(arg);
@@ -224,6 +231,7 @@ namespace kefka.Source.Processors
         private void ConvertToLF(FileStream ifs, FileStream ofs, byte[] buf)
         {
             int readOffset = 0;
+            bool firstRead = true;
 
             long remainingBytes = ifs.Length;
             while (remainingBytes > 0)
@@ -233,6 +241,22 @@ namespace kefka.Source.Processors
                     throw new Exception("bytesRead == 0");
 
                 remainingBytes -= bytesRead;
+
+                if (firstRead)
+                {
+                    if (_removeBom && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF)
+                    {
+                        if (bytesRead == 3)
+                            break;
+
+                        for (int i = 3, pos = 0; i < bytesRead; i++, pos++)
+                        {
+                            buf[pos] = buf[i];
+                        }
+                        bytesRead -= 3;
+                    }
+                    firstRead = false;
+                }
 
                 // if not end of stream and buf ends with \r
                 if (remainingBytes == 0 && buf[bytesRead - 1] == CARRIAGE_RETURN)
