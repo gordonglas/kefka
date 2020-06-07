@@ -13,6 +13,10 @@ namespace kefka.Source.Processors
             {
                 return new EolCmdProcessor();
             }
+            else if (ConcatCmdProcessor.IsType(typeParam))
+            {
+                return new ConcatCmdProcessor();
+            }
 
             return null;
         }

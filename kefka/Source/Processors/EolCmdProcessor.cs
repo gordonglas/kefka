@@ -4,18 +4,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
+using static kefka.Source.Base.EolUtil;
 
 namespace kefka.Source.Processors
 {
     public class EolCmdProcessor : CmdProcessor
     {
-        private const string EOL_TYPE_LF = "lf";
-        private const string EOL_TYPE_CRLF = "crlf";
-        private const string EOL_TYPE_CR = "cr";
-
-        private const byte CARRIAGE_RETURN = 0x0D;
-        private const byte LINE_FEED = 0x0A;
-
         private string _eolTypeParam;
         private List<string> _inputFilesParam;
         private string _outputPathParam;
@@ -29,25 +23,13 @@ namespace kefka.Source.Processors
 
         override public bool ParseCmdLine(CmdLine cmdLine)
         {
-            string[] tok = cmdLine._type.Split('=');
-            string type = tok[1];
-            if (type.Trim() == "")
+            ParseEolTypeError error = EolUtil.ParseEqualsEolType(cmdLine._type, out string eolType);
+            if (error != ParseEolTypeError.Success)
             {
-                AppendError("Missing --eol= param value.");
+                AppendError($"Missing or invalid -eol= param value.");
                 return false;
             }
-
-            if (type == EOL_TYPE_LF ||
-                type == EOL_TYPE_CRLF ||
-                type == EOL_TYPE_CR)
-            {
-                _eolTypeParam = type;
-            }
-            else
-            {
-                AppendError("Invalid --eol= param value.");
-                return false;
-            }
+            _eolTypeParam = eolType;
 
             // kefka --eol=lf path/to/file.txt -op output/path
             // kefka --eol=lf path/to/file.txt -of output/file.txt
@@ -172,10 +154,6 @@ namespace kefka.Source.Processors
                         AppendError("Output directory does not exist or you don't have read permission.");
                         return false;
                     }
-                }
-                else
-                {
-                    throw new Exception("invalid params");
                 }
             }
             catch (Exception ex)
