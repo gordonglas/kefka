@@ -48,6 +48,7 @@ namespace kefka.Source.Processors
             }
         }
 
+        abstract public string GetHelpText();
         abstract public bool ParseCmdLine(CmdLine cmdLine);
         abstract public bool RunAndWait();
     }

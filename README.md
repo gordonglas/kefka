@@ -2,6 +2,11 @@
 
 Requires .NET Core 3.1 runtime.
 
+For help, run:
+<pre>
+kefka -h
+</pre>
+
 ## Convert line endings
 * Supports large files.
 * Supports UTF-8 input.

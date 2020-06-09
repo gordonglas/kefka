@@ -1,6 +1,7 @@
 ﻿using kefka.Source.Processors;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace kefka.Source.Base
@@ -17,37 +18,15 @@ namespace kefka.Source.Base
 
         string _helpText = @"
 
-Usage:
-  kefka --eol=lf [input-files] [-op output-path]
-  kefka --eol=lf [input-file] [-of output-file]
+Kefka is a cross-platform file transform tool,
+which can currently perform two different tasks.
+For detailed usage info on a task,
+run the following:
 
-Options:
-  --eol=TYPE
-        Set to line ending type that you want to convert to.
-        Only supports UTF-8 input/output.
-        TYPE values:
-            lf    line-feed
-            TODO: crlf  carriage-return/line-feed
-            TODO: cr    carriage-return
-  [input-files]
-        Optional space-delimited list of input files.
-        TODO: Can use simple wildcard.
-        TODO: If omitted, reads from STDIN.
-  [-op output-path]
-        Output path. Same input filename will be used.
-  [-of output-file]
-        Output file. Must have single input source.
-  --no-remove-bom
-        Do not remove byte-order-mark if one exists.
-        Default is to remove it.
+kefka -h eol         End-of-line conversion.
+kefka -h concat      Concat files.
 
-  TODO: If both output-path and output-file are omitted,
-    input must be a single source
-    and output is sent to STDOUT.
-
-Examples:
-  kefka --eol=lf path/to/file1.js path/to/file2.js -op output/path
-  kefka --eol=lf path/to/file.js -of output/file.js
+kefka -v             Version info.
 ";
 
         public void DisplayHelp()
@@ -69,8 +48,29 @@ Examples:
 
             if (_type == "--help" || _type == "-h" || _type == "help" || _type == "/?")
             {
-                DisplayHelp();
+                if (_args.Length == 1)
+                {
+                    DisplayHelp();
+                }
+                else
+                {
+                    string topic = "--" + _args[1].ToLower() + "=";
+                    if ((processor = CmdProcessor.Factory(topic)) != null)
+                    {
+                        Console.WriteLine(processor.GetHelpText());
+                    }
+                    else
+                    {
+                        Console.WriteLine("Unrecognized help topic.");
+                        DisplayHelp();
+                    }
+                }
                 return null;
+            }
+            if (_type == "--version" || _type == "-v")
+            {
+                Version version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                Console.WriteLine($"Kefka v{version}");
             }
             else if ((processor = CmdProcessor.Factory(_type)) != null)
             {

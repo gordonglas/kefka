@@ -10,15 +10,64 @@ namespace kefka.Source.Processors
 {
     public class EolCmdProcessor : CmdProcessor
     {
+        private string _helpText = @"
+
+Convert line endings
+* Supports large files.
+* Supports UTF-8 input.
+* Anything that starts with 'TODO' below, has not been implemented yet.
+
+Usage:
+  kefka --eol=lf [input-files] [-op output-path]
+  kefka --eol=lf [input-file] [-of output-file]
+
+Options:
+  --eol=TYPE
+        Set to line ending type that you want to convert to.
+        Only supports UTF-8 input/output.
+        TYPE values:
+            lf    line-feed
+            TODO: crlf  carriage-return/line-feed
+            TODO: cr    carriage-return
+  [input-files]
+        Optional space-delimited list of input files.
+        TODO: Can use simple wildcard.
+        TODO: If omitted, reads from STDIN.
+  [-op output-path]
+        Output path. Same input filename will be used.
+  [-of output-file]
+        Output file. Must have single input source.
+  --no-remove-bom
+        Do not remove byte-order-mark if one exists.
+        Default is to remove it.
+  --in-place
+        Modifies original [input-files].
+        Ignores -op and -of.
+
+  TODO: If both output-path and output-file are omitted,
+    input must be a single source
+    and output is sent to STDOUT.
+
+Examples:
+  kefka --eol=lf path/to/file1.js path/to/file2.js -op output/path
+  kefka --eol=lf path/to/file.js -of output/file.js
+";
+
         private string _eolTypeParam;
         private List<string> _inputFilesParam;
         private string _outputPathParam;
         private string _outputFileParam;
         private bool _removeBom = true;
+        private bool _inPlace;
 
         public static bool IsType(string type)
         {
             return type.StartsWith("--eol=");
+        }
+
+        override public string GetHelpText()
+        {
+            return _helpText;
         }
 
         override public bool ParseCmdLine(CmdLine cmdLine)
@@ -71,6 +120,12 @@ namespace kefka.Source.Processors
                     continue;
                 }
 
+                if (arg == "--in-place")
+                {
+                    _inPlace = true;
+                    continue;
+                }
+
                 _inputFilesParam.Add(arg);
             }
 
@@ -80,35 +135,38 @@ namespace kefka.Source.Processors
                 return false;
             }
 
-            bool hasOutputPath = !string.IsNullOrWhiteSpace(_outputPathParam);
-            bool hasOutputFile = !string.IsNullOrWhiteSpace(_outputFileParam);
+            if (!_inPlace)
+            {
+                bool hasOutputPath = !string.IsNullOrWhiteSpace(_outputPathParam);
+                bool hasOutputFile = !string.IsNullOrWhiteSpace(_outputFileParam);
 
-            if (isOutputPath == true && !hasOutputPath)
-            {
-                AppendError("Missing [output-path] param.");
-                return false;
-            }
-            else if (isOutputFile == true && !hasOutputFile)
-            {
-                AppendError("Missing [output-file] param.");
-                return false;
-            }
+                if (isOutputPath == true && !hasOutputPath)
+                {
+                    AppendError("Missing [output-path] param.");
+                    return false;
+                }
+                else if (isOutputFile == true && !hasOutputFile)
+                {
+                    AppendError("Missing [output-file] param.");
+                    return false;
+                }
 
-            if (!hasOutputPath && !hasOutputFile)
-            {
-                AppendError("[output-path] or [output-file] param required.");
-                return false;
-            }
-            else if (hasOutputPath && hasOutputFile)
-            {
-                AppendError("Cannot have both [output-path] and [output-file] params.");
-                return false;
-            }
+                if (!hasOutputPath && !hasOutputFile)
+                {
+                    AppendError("[output-path] or [output-file] param required.");
+                    return false;
+                }
+                else if (hasOutputPath && hasOutputFile)
+                {
+                    AppendError("Cannot have both [output-path] and [output-file] params.");
+                    return false;
+                }
 
-            if (hasOutputFile && _inputFilesParam.Count > 1)
-            {
-                AppendError("Single [output-file] with multiple input files. Maybe you meant to use -op instead?");
-                return false;
+                if (hasOutputFile && _inputFilesParam.Count > 1)
+                {
+                    AppendError("Single [output-file] with multiple input files. Maybe you meant to use -op instead?");
+                    return false;
+                }
             }
 
             return true;
@@ -135,24 +193,46 @@ namespace kefka.Source.Processors
                     inputFiles.Add(absoluteInputFile);
                 }
 
-                if (!string.IsNullOrWhiteSpace(_outputPathParam))
+                if (_inPlace)
                 {
-                    // check if output path exists
-                    absoluteOutputPath = Path.GetFullPath(_outputPathParam);
+                    // make sure temp path exists
+                    absoluteOutputPath = Path.GetTempPath();
+                    try
+                    {
+                        Directory.CreateDirectory(absoluteOutputPath);
+                    }
+                    catch
+                    {
+                        AppendError("Unable to create temp path needed for --in-place option or you do not have permission.");
+                        return false;
+                    }
                     if (!Directory.Exists(absoluteOutputPath))
                     {
-                        AppendError("Output directory does not exist or you don't have read permission.");
+                        AppendError("Temp folder does not exist or you don't have read permission.");
                         return false;
                     }
                 }
-                else if (!string.IsNullOrWhiteSpace(_outputFileParam))
+                else
                 {
-                    // check if path portion of output file exists
-                    absoluteOutputPath = Path.GetDirectoryName(_outputFileParam);
-                    if (!Directory.Exists(absoluteOutputPath))
+                    if (!string.IsNullOrWhiteSpace(_outputPathParam))
                     {
-                        AppendError("Output directory does not exist or you don't have read permission.");
-                        return false;
+                        // check if output path exists
+                        absoluteOutputPath = Path.GetFullPath(_outputPathParam);
+                        if (!Directory.Exists(absoluteOutputPath))
+                        {
+                            AppendError("Output directory does not exist or you don't have read permission.");
+                            return false;
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_outputFileParam))
+                    {
+                        // check if path portion of output file exists
+                        absoluteOutputPath = Path.GetDirectoryName(_outputFileParam);
+                        if (!Directory.Exists(absoluteOutputPath))
+                        {
+                            AppendError("Output directory does not exist or you don't have read permission.");
+                            return false;
+                        }
                     }
                 }
             }
@@ -169,17 +249,24 @@ namespace kefka.Source.Processors
                 try
                 {
                     string outputFile = null;
-                    if (!string.IsNullOrWhiteSpace(_outputPathParam))
+                    if (_inPlace)
                     {
-                        outputFile = Path.Combine(absoluteOutputPath, Path.GetFileName(inputFile));
-                    }
-                    else if (!string.IsNullOrWhiteSpace(_outputFileParam))
-                    {
-                        outputFile = Path.Combine(absoluteOutputPath, Path.GetFileName(_outputFileParam));
+                        outputFile = Path.Combine(absoluteOutputPath, Guid.NewGuid() + Path.GetFileName(inputFile));
                     }
                     else
                     {
-                        throw new Exception("invalid params");
+                        if (!string.IsNullOrWhiteSpace(_outputPathParam))
+                        {
+                            outputFile = Path.Combine(absoluteOutputPath, Path.GetFileName(inputFile));
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_outputFileParam))
+                        {
+                            outputFile = Path.Combine(absoluteOutputPath, Path.GetFileName(_outputFileParam));
+                        }
+                        else
+                        {
+                            throw new Exception("invalid params");
+                        }
                     }
 
                     // stream file into memory with a relatively small buffer, so we can handle large files.
@@ -194,6 +281,39 @@ namespace kefka.Source.Processors
                             ConvertToLF(ifs, ofs, buf);
                         }
                         // TODO: handle other eol types
+                    }
+
+                    if (_inPlace)
+                    {
+                        // overwrite inputFile with it's new contents
+                        using (FileStream ifs = new FileStream(outputFile, FileMode.Open, FileAccess.Read))
+                        using (FileStream ofs = new FileStream(inputFile, FileMode.Create, FileAccess.Write))
+                        {
+                            long bufSize = Math.Min(65536, ifs.Length);
+                            byte[] buf = new byte[bufSize];
+
+                            long remainingBytes = ifs.Length;
+                            while (remainingBytes > 0)
+                            {
+                                int bytesRead = ifs.Read(buf, 0, buf.Length);
+                                if (bytesRead == 0)
+                                    break;
+
+                                ofs.Write(buf, 0, bytesRead);
+
+                                remainingBytes -= bytesRead;
+                            }
+                        }
+
+                        // delete temp file
+                        try
+                        {
+                            File.Delete(outputFile);
+                        }
+                        catch
+                        {
+                            // OS will clean up the temp file eventually.
+                        }
                     }
                 }
                 catch (Exception ex)
