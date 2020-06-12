@@ -228,7 +228,7 @@ Examples:
                     {
                         // check if path portion of output file exists
                         absoluteOutputPath = Path.GetDirectoryName(_outputFileParam);
-                        if (!Directory.Exists(absoluteOutputPath))
+                        if (absoluteOutputPath != "" && !Directory.Exists(absoluteOutputPath))
                         {
                             AppendError("Output directory does not exist or you don't have read permission.");
                             return false;

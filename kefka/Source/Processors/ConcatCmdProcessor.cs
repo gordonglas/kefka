@@ -135,11 +135,6 @@ Example:
                 AppendError("Missing [input-files] param.");
                 return false;
             }
-            else if (_inputFilesParam.Count == 1)
-            {
-                AppendError("At least 2 [input-files] are required for concatination.");
-                return false;
-            }
 
             if (string.IsNullOrWhiteSpace(_outputFileParam))
             {
@@ -173,7 +168,7 @@ Example:
 
                 // check if path portion of output file exists
                 absoluteOutputPath = Path.GetDirectoryName(_outputFileParam);
-                if (!Directory.Exists(absoluteOutputPath))
+                if (absoluteOutputPath != "" && !Directory.Exists(absoluteOutputPath))
                 {
                     AppendError("Output directory does not exist or you don't have read permission.");
                     return false;
