@@ -1,6 +1,6 @@
 # Kefka - Cross-platform file transform cli tool
 
-Requires .NET Core 3.1 runtime.
+Requires .NET Core 6 runtime.
 
 For help, run:
 <pre>
