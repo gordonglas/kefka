@@ -1,5 +1,9 @@
 # Kefka - Cross-platform file transform cli tool
 
+Update: I archived this, as I'm no longer using/maintaining it. Someone might still find it useful though, as it uses very little memory to handle very large files.
+
+---
+
 Requires .NET Core 6 runtime.
 
 For help, run:
